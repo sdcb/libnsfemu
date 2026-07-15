@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(libnsfemu LANGUAGES C)
+project(libnsfemu VERSION 1.0.0 LANGUAGES C)
 
 option(NSFEMU_BUILD_TOOLS "Build command-line smoke/diagnostic tools" ON)
 
 include(CTest)
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 add_library(nsfemu
     src/blip_buffer.c
@@ -15,10 +17,13 @@ add_library(nsfemu
 
 target_include_directories(nsfemu
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+add_library(libnsfemu::nsfemu ALIAS nsfemu)
 
 target_compile_features(nsfemu PUBLIC c_std_11)
 
@@ -33,6 +38,44 @@ if(BUILD_SHARED_LIBS)
             NSFEMU_SHARED
     )
 endif()
+
+install(
+    TARGETS nsfemu
+    EXPORT libnsfemu-targets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(
+    DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/libnsfemu-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/libnsfemu-config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/libnsfemu-config.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libnsfemu
+)
+
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/libnsfemu-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/libnsfemu-config-version.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libnsfemu
+)
+
+install(
+    EXPORT libnsfemu-targets
+    NAMESPACE libnsfemu::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libnsfemu
+)
 
 if(MSVC)
     target_compile_options(nsfemu PRIVATE /W4 /wd4204 /wd4244 /wd4706)
